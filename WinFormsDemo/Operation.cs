@@ -20,7 +20,7 @@ namespace WinFormsDemo
         {
             //CReate empty strings instead of having null
             this.LeftSide = string.Empty;
-            this.RigthSide = string.Empty;
+            this.RightSide = string.Empty;
         }
 
         #endregion
@@ -35,7 +35,7 @@ namespace WinFormsDemo
         /// <summary>
         /// The right side of the operation
         /// </summary>
-        public string RigthSide { get; set; }
+        public string RightSide { get; set; }
 
         /// <summary>
         /// The type of operation to perform

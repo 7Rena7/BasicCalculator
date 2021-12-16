@@ -341,7 +341,7 @@ namespace WinFormsDemo
         #region Calculating Result
 
         /// <summary>
-        /// Calculates the given equation and outputs the answer to the user label (calculationResultText)
+        /// Calculates the given equation and outputs the answer to the user label <see cref="calculationResultText"/>
         /// </summary>
         private void CalculateEquation()
         {
@@ -385,24 +385,78 @@ namespace WinFormsDemo
                     // It should calculate 5 * 3 first, then 4 + the result (so 4 + 15)
 
                     // Define the valid characters of our calculator
-                    var validChar = "0123456789.";
-
                     // Check if the current character is a number
-                    if (validChar.Any(c => input[i] == c))
+                    if ("0123456789.".Any(c => input[i] == c))
                     {
                         if (leftSide)
-                        {
                             operation.LeftSide = AddNumberPart(operation.LeftSide, input[i]);
+                        else
+                            operation.RightSide = AddNumberPart(operation.RightSide, input[i]);
+                    }
+                    // If it is an operator (+ - * /), set the operator type
+                    else if ("+-*/".Any(c => input[i] == c))
+                    {
+                        // If we are on the right side, we now need to calculate our current operation
+                        // and set the result to the left side of the next operation
+                        if (!leftSide)
+                        {
+                            // Get the operator type
+                            var operatorType = GetOperatorType(input[i]);
+
+                            // Check if we actually have a right side number
+                            if (operation.RightSide.Length == 0)
+                            {
+                                // Check the operator is not a minus (as they could be creating a negative number)
+                                if (operatorType != OperationType.Minus)
+                                    throw new InvalidOperationException($"Operator (+ * / or more than one -) specified without an right side number");
+
+                                // If we got here, the oeprator type is a minus, and there is no left number currently, so add the minus to the number
+                                operation.RightSide += input[i];
+                            }
+                            else
+                            {
+                                // Calculate previous equation and set to the left side of the new equation
+                                operation.LeftSide = CalculateOperation(operation);
+
+                                // Set new operator
+                                operation.OperationType = operatorType;
+
+                                // Clear the previous right number
+                                operation.RightSide = string.Empty;
+                            }
+                        }
+                        else
+                        {
+                            // Get the operator type
+                            var operatorType = GetOperatorType(input[i]);
+
+                            // Check if we actually have a left side number
+                            if (operation.LeftSide.Length == 0)
+                            {
+                                // Check the operator is not a minus (as they could be creating a negative number)
+                                if (operatorType != OperationType.Minus)
+                                    throw new InvalidOperationException($"Operator (+ * / or more than one -) specified without an left side number");
+
+                                // If we got here, the oeprator type is a minus, and there is no left number currently, so add the minus to the number
+                                operation.LeftSide += input[i];
+                            }
+                            else
+                            {
+                                // If we get here, we have a left number and now an operator, so we want to move to the right side
+
+                                // Set the operation type
+                                operation.OperationType = operatorType;
+
+                                //Move to the right side
+                                leftSide = false;
+                            }
                         }
                     }
-
-
                 }
-                
 
-
-
-                return string.Empty;
+                // If we are done parsing, and there were no exceptions
+                // Calculate the current operation
+                return CalculateOperation(operation);
 
             }
             catch (Exception ex)
@@ -412,7 +466,78 @@ namespace WinFormsDemo
         }
 
         /// <summary>
-        /// Atempt to add a new character to the current number, checking of invalid character as it goes
+        /// Calculates an <see cref="Operation"/> and returns the result
+        /// </summary>
+        /// <param name="operation">The operation to calculate</param>
+        private string CalculateOperation(Operation operation)
+        {
+            // Store the number values of the string representations
+            double left = 0;
+            double right = 0;
+
+            //Check if we have a valid left side number
+            if (string.IsNullOrEmpty(operation.LeftSide) || !double.TryParse(operation.LeftSide, out left))
+                throw new InvalidOperationException($"Left side of the operation was not a number {operation.LeftSide}");
+
+            //Check if we have a valid right side number
+            if (string.IsNullOrEmpty(operation.RightSide) || !double.TryParse(operation.RightSide, out right))
+                throw new InvalidOperationException($"Right side of the operation was not a number {operation.RightSide}");
+
+            try
+            {
+                switch (operation.OperationType)
+                {
+                    case OperationType.Add:
+                        return (left + right).ToString();
+                    case OperationType.Minus:
+                        return (left - right).ToString();
+                    case OperationType.Divide:
+                        return (left / right).ToString();
+                    case OperationType.Multiply:
+                        return (left * right).ToString();
+                    default:
+                        throw new InvalidOperationException($"Unknown operator type when calculating operation {operation.OperationType}");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to calculate operation {operation.LeftSide} {operation.OperationType} {operation.RightSide}" +
+                    $"{ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Accepts a character and returns the known <see cref="OperationType"/>
+        /// </summary>
+        /// <param name="character">The operator character</param>
+        /// <returns></returns>
+        private OperationType GetOperatorType(char character)
+        {
+            switch(character)
+            {
+                case '+':
+                    return OperationType.Add;
+                    break;
+
+                case '-':
+                    return OperationType.Minus;
+                    break;
+
+                case '*':
+                    return OperationType.Multiply;
+                    break;
+
+                case '/':
+                    return OperationType.Divide;
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unknown operator type {character}");
+            }
+        }
+
+        /// <summary>
+        /// Atempts to add a new character to the current number, checking of invalid character as it goes
         /// </summary>
         /// <param name="currentNumber">The current number string</param>
         /// <param name="currentChar">The new character to append to the string</param>
